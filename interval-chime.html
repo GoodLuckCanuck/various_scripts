@@ -45,7 +45,7 @@
   h1 { font-size: 1rem; font-weight: 400; color: var(--muted); margin: 0 0 20px; }
 
   .dial { position: relative; width: min(74vw, 300px); aspect-ratio: 1; margin: 0 auto 26px; }
-  .dial svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .dial svg { display: block; width: 100%; height: 100%; transform: rotate(-90deg); }
   .dial .track { fill: none; stroke: var(--track); stroke-width: 6; }
   .dial .arc { fill: none; stroke: var(--accent); stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset .4s linear, opacity .3s; }
   .dial.off .arc { opacity: .25; }
@@ -78,7 +78,7 @@
   button.cog[aria-expanded="true"] svg { transform: rotate(45deg); }
   .settings h2 { margin: 0; font-size: .95rem; font-weight: 600; }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  .field { display: grid; gap: 6px; font-size: .82rem; color: var(--muted); }
+  .field { align-content: start; display: grid; gap: 6px; font-size: .82rem; color: var(--muted); }
   fieldset.field { border: 0; margin: 0; padding: 0; min-width: 0; }
   legend { padding: 0; margin-bottom: 8px; font-size: .82rem; color: var(--muted); }
   input[type="time"], select {
@@ -97,11 +97,11 @@
   .pill input:focus-visible + span { outline: 3px solid var(--focus); outline-offset: 2px; }
   .inline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: .85rem; color: var(--ink); }
   .inline select { width: auto; }
-  label.check { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  label.check { display: flex; align-items: center; gap: 8px; cursor: pointer; white-space: nowrap; }
   input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px; }
 
   .settings h3 { margin: 0 0 10px; font-size: .85rem; font-weight: 600; }
-  .srow { display: grid; grid-template-columns: 88px 1fr 104px; align-items: center; gap: 10px; font-size: .8rem; color: var(--muted); margin-bottom: 8px; }
+  .srow { display: grid; grid-template-columns: 96px 1fr 104px; align-items: center; gap: 10px; font-size: .8rem; color: var(--muted); margin-bottom: 8px; }
   .srow output { text-align: right; color: var(--ink); font-variant-numeric: tabular-nums; }
   .srow.disc { align-items: start; margin-bottom: 0; grid-template-columns: 1fr 62px; }
   .srow.disc output { line-height: 18px; }
@@ -122,11 +122,39 @@
   .soundgroup .buttons { justify-content: flex-start; margin-top: 12px; }
   input[type="range"]:disabled { opacity: .4; }
   @media (prefers-reduced-motion: reduce) { .dial .arc, button.cog svg { transition: none; } }
+
+  /* Small landscape windows: timer centred (or as near centre as fits), with a narrow column beside it holding
+     the title, the Start/Stop + settings buttons and the status text. That column is exactly as wide as the
+     button row, so the status text wraps instead of stretching the column. */
+  @media (orientation: landscape) and (max-height: 640px) {
+    body { padding: 16px; }
+    main {
+      max-width: none; text-align: left;
+      display: grid; column-gap: 0;
+      grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr);
+      grid-template-rows: 1fr auto auto 1fr auto;
+      grid-template-areas: ". dial ." ". dial title" ". dial side" ". dial ." "set set set";
+    }
+    h1 { grid-area: title; margin: 0 0 14px; padding-left: 28px; justify-self: start; }
+    .dial { grid-area: dial; width: min(calc(100vh - 32px), max(160px, calc(100vw - 292px))); margin: 0; container-type: inline-size; }
+    .dial .face { padding: 0 8cqw; }
+    .clock { font-size: clamp(1.4rem, 13cqw, 3.4rem); }
+    .next { font-size: clamp(.72rem, 4.6cqw, 1.05rem); }
+    .side { grid-area: side; justify-self: start; padding-left: 28px; }
+    .controls { justify-items: start; }
+    .buttons { justify-content: flex-start; align-items: center; flex-wrap: nowrap; }
+    button.cog { position: static; }
+    .status { width: 0; min-width: 100%; margin: 14px 0 0; min-height: 0; }
+    .settings { grid-area: set; margin-top: 20px; width: 0; min-width: 100%; } /* contributes nothing to column sizing */
+  }
+  @media (orientation: landscape) and (max-height: 640px) and (min-width: 640px) {
+    .settings { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 32px; align-items: start; }
+    .settings h2 { grid-column: 1 / -1; }
+  }
 </style>
 </head>
 <body>
 <main>
-  <button id="cog" class="cog" type="button" aria-expanded="false" aria-controls="settingsPanel" aria-label="Settings"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path d="M10.08 4.85 L10.37 1.73 L13.63 1.73 L13.92 4.85 L15.70 5.59 L18.11 3.59 L20.41 5.89 L18.41 8.30 L19.15 10.08 L22.27 10.37 L22.27 13.63 L19.15 13.92 L18.41 15.70 L20.41 18.11 L18.11 20.41 L15.70 18.41 L13.92 19.15 L13.63 22.27 L10.37 22.27 L10.08 19.15 L8.30 18.41 L5.89 20.41 L3.59 18.11 L5.59 15.70 L4.85 13.92 L1.73 13.63 L1.73 10.37 L4.85 10.08 L5.59 8.30 L3.59 5.89 L5.89 3.59 L8.30 5.59 Z M12 8.8a3.2 3.2 0 1 0 0 6.4a3.2 3.2 0 1 0 0-6.4Z" fill="currentColor" fill-rule="evenodd"/></svg></button>
   <h1>Interval chime</h1>
 
   <div class="dial off" id="dial">
@@ -140,13 +168,16 @@
     </div>
   </div>
 
-  <div class="controls">
-    <div class="buttons">
-      <button id="toggle" type="button">Start chiming</button>
+  <div class="side">
+    <div class="controls">
+      <div class="buttons">
+        <button id="toggle" type="button">Start chiming</button>
+        <button id="cog" class="cog" type="button" aria-expanded="false" aria-controls="settingsPanel" aria-label="Settings"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path d="M10.08 4.85 L10.37 1.73 L13.63 1.73 L13.92 4.85 L15.70 5.59 L18.11 3.59 L20.41 5.89 L18.41 8.30 L19.15 10.08 L22.27 10.37 L22.27 13.63 L19.15 13.92 L18.41 15.70 L20.41 18.11 L18.11 20.41 L15.70 18.41 L13.92 19.15 L13.63 22.27 L10.37 22.27 L10.08 19.15 L8.30 18.41 L5.89 20.41 L3.59 18.11 L5.59 15.70 L4.85 13.92 L1.73 13.63 L1.73 10.37 L4.85 10.08 L5.59 8.30 L3.59 5.89 L5.89 3.59 L8.30 5.59 Z M12 8.8a3.2 3.2 0 1 0 0 6.4a3.2 3.2 0 1 0 0-6.4Z" fill="currentColor" fill-rule="evenodd"/></svg></button>
+      </div>
     </div>
-  </div>
 
-  <p class="status" id="status" aria-live="polite">Click Start once so the browser allows sound, then leave this tab open.</p>
+    <p class="status" id="status" aria-live="polite">Click Start once so the browser allows sound, then leave this tab open.</p>
+  </div>
 
   <section class="settings" id="settingsPanel" aria-labelledby="settingsHead" hidden>
     <h2 id="settingsHead">Settings</h2>
@@ -682,6 +713,11 @@
     var open = el.panel.hidden;           // hidden now, so this click opens it
     el.panel.hidden = !open;
     el.cog.setAttribute('aria-expanded', open ? 'true' : 'false');
+    // In the compact landscape layout the panel opens below the fold, so bring it into view.
+    if (open && window.matchMedia && window.matchMedia('(orientation: landscape) and (max-height: 640px)').matches) {
+      var calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      el.panel.scrollIntoView({ block: 'start', behavior: calm ? 'auto' : 'smooth' });
+    }
   });
 
   el.toggle.addEventListener('click', function () { running ? stop() : start(); });
