@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Interval chime</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Ccircle%20cx%3D%2216%22%20cy%3D%2216%22%20r%3D%2214%22%20fill%3D%22%23ffffff%22%20stroke%3D%22%231f6f8b%22%20stroke-width%3D%223%22%2F%3E%3Cpath%20d%3D%22M16%2016%2010.3%2012M16%2016%2024.7%2011%22%20stroke%3D%22%2314262e%22%20stroke-width%3D%222.6%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3Ccircle%20cx%3D%2216%22%20cy%3D%2216%22%20r%3D%221.8%22%20fill%3D%22%2314262e%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #eef2f4;
+    --ink: #14262e;
+    --muted: #5b6f78;
+    --track: #cfdadf;
+    --accent: #1f6f8b;
+    --accent-ink: #ffffff;
+    --focus: #1f6f8b;
+    color-scheme: light;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1a1f; --ink: #e4eef1; --muted: #8fa5ae; --track: #24363e;
+      --accent: #6cc4dd; --accent-ink: #08161b; --focus: #6cc4dd;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1a1f; --ink: #e4eef1; --muted: #8fa5ae; --track: #24363e;
+    --accent: #6cc4dd; --accent-ink: #08161b; --focus: #6cc4dd;
+    color-scheme: dark;
+  }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: var(--bg); color: var(--ink);
+    font-family: "Sora", system-ui, -apple-system, "Segoe UI", sans-serif;
+    display: grid; place-items: center; padding: 24px 16px 40px;
+  }
+  main { position: relative; width: 100%; max-width: 440px; text-align: center; }
+  h1 { font-size: 1rem; font-weight: 400; color: var(--muted); margin: 0 0 20px; }
+
+  .dial { position: relative; width: min(74vw, 300px); aspect-ratio: 1; margin: 0 auto 26px; }
+  .dial svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .dial .track { fill: none; stroke: var(--track); stroke-width: 6; }
+  .dial .arc { fill: none; stroke: var(--accent); stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset .4s linear, opacity .3s; }
+  .dial.off .arc { opacity: .25; }
+  .dial.idle .arc { opacity: .45; }
+  .dial .face { position: absolute; inset: 0; display: grid; place-content: center; gap: 6px; padding: 0 28px; }
+  .clock { font-size: clamp(2rem, 9vw, 2.5rem); font-weight: 300; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+  .next { font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; line-height: 1.5; }
+  .next strong { color: var(--ink); font-weight: 600; }
+
+  .controls { display: grid; gap: 12px; justify-items: center; }
+  .buttons { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  button {
+    font: inherit; font-weight: 600; font-size: .92rem; cursor: pointer;
+    border-radius: 999px; padding: 11px 24px;
+    border: 2px solid var(--accent); background: var(--accent); color: var(--accent-ink);
+  }
+  button.secondary { background: transparent; color: var(--ink); border-color: var(--track); font-weight: 400; padding: 9px 18px; font-size: .85rem; }
+  button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+
+  .status { margin: 20px 0 0; font-size: .8rem; color: var(--muted); min-height: 2.8em; line-height: 1.5; }
+  .status.live { color: var(--accent); }
+
+  .settings { margin-top: 28px; padding-top: 22px; border-top: 1px solid var(--track); text-align: left; display: grid; gap: 18px; }
+  .settings[hidden] { display: none; }
+  button.cog { position: absolute; top: -10px; right: -6px; min-width: 0; padding: 8px; border: 0; border-radius: 50%;
+    background: transparent; color: var(--muted); line-height: 0; }
+  button.cog:hover { color: var(--ink); }
+  button.cog svg { display: block; transition: transform .25s ease; }
+  button.cog[aria-expanded="true"] { color: var(--accent); }
+  button.cog[aria-expanded="true"] svg { transform: rotate(45deg); }
+  .settings h2 { margin: 0; font-size: .95rem; font-weight: 600; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .field { display: grid; gap: 6px; font-size: .82rem; color: var(--muted); }
+  fieldset.field { border: 0; margin: 0; padding: 0; min-width: 0; }
+  legend { padding: 0; margin-bottom: 8px; font-size: .82rem; color: var(--muted); }
+  input[type="time"], select {
+    font: inherit; font-size: .95rem; color: var(--ink); background: transparent;
+    border: 1px solid var(--track); border-radius: 10px; padding: 9px 10px; width: 100%;
+  }
+  select option { color: #14262e; background: #fff; }
+  .days { display: flex; gap: 6px; flex-wrap: wrap; }
+  .pill { position: relative; }
+  .pill input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+  .pill span {
+    display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%;
+    border: 1px solid var(--track); font-size: .78rem; color: var(--muted); user-select: none;
+  }
+  .pill input:checked + span { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .pill input:focus-visible + span { outline: 3px solid var(--focus); outline-offset: 2px; }
+  .inline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: .85rem; color: var(--ink); }
+  .inline select { width: auto; }
+  label.check { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px; }
+
+  .settings h3 { margin: 0 0 10px; font-size: .85rem; font-weight: 600; }
+  .srow { display: grid; grid-template-columns: 88px 1fr 104px; align-items: center; gap: 10px; font-size: .8rem; color: var(--muted); margin-bottom: 8px; }
+  .srow output { text-align: right; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .srow.disc { align-items: start; margin-bottom: 0; grid-template-columns: 1fr 62px; }
+  .srow.disc output { line-height: 18px; }
+  .sl { min-width: 0; }
+  .ticks { position: relative; height: 1.1rem; margin: 6px 9px 0; font-size: .68rem; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .ticks span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
+  input.rng { -webkit-appearance: none; appearance: none; width: 100%; height: 18px; margin: 0; background: transparent; cursor: pointer; }
+  input.rng::-webkit-slider-runnable-track { height: 6px; border-radius: 3px;
+    background: linear-gradient(to right, var(--accent) calc(9px + (100% - 18px) * var(--f, 0)), var(--track) calc(9px + (100% - 18px) * var(--f, 0))); }
+  input.rng::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; margin-top: -6px; border-radius: 50%; border: 0; background: var(--accent); }
+  input.rng::-moz-range-track { height: 6px; border-radius: 3px; background: var(--track); }
+  input.rng::-moz-range-progress { height: 6px; border-radius: 3px; background: var(--accent); }
+  input.rng::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; border: 0; background: var(--accent); }
+  .ticks span.off { color: var(--muted); opacity: .45; text-decoration: line-through; }
+  .ticks span.sel { font-weight: 600; color: var(--accent); }
+  .hint { font-size: .74rem; color: var(--muted); margin: 6px 0 0; line-height: 1.4; }
+  .soundgroup { border-top: 1px solid var(--track); padding-top: 16px; }
+  .soundgroup .buttons { justify-content: flex-start; margin-top: 12px; }
+  input[type="range"]:disabled { opacity: .4; }
+  @media (prefers-reduced-motion: reduce) { .dial .arc, button.cog svg { transition: none; } }
+</style>
+</head>
+<body>
+<main>
+  <button id="cog" class="cog" type="button" aria-expanded="false" aria-controls="settingsPanel" aria-label="Settings"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path d="M10.08 4.85 L10.37 1.73 L13.63 1.73 L13.92 4.85 L15.70 5.59 L18.11 3.59 L20.41 5.89 L18.41 8.30 L19.15 10.08 L22.27 10.37 L22.27 13.63 L19.15 13.92 L18.41 15.70 L20.41 18.11 L18.11 20.41 L15.70 18.41 L13.92 19.15 L13.63 22.27 L10.37 22.27 L10.08 19.15 L8.30 18.41 L5.89 20.41 L3.59 18.11 L5.59 15.70 L4.85 13.92 L1.73 13.63 L1.73 10.37 L4.85 10.08 L5.59 8.30 L3.59 5.89 L5.89 3.59 L8.30 5.59 Z M12 8.8a3.2 3.2 0 1 0 0 6.4a3.2 3.2 0 1 0 0-6.4Z" fill="currentColor" fill-rule="evenodd"/></svg></button>
+  <h1>Interval chime</h1>
+
+  <div class="dial off" id="dial">
+    <svg viewBox="0 0 200 200" aria-hidden="true">
+      <circle class="track" cx="100" cy="100" r="92"/>
+      <circle class="arc" id="arc" cx="100" cy="100" r="92"/>
+    </svg>
+    <div class="face">
+      <div class="clock" id="clock">--:--:--</div>
+      <div class="next" id="next">Not started</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="buttons">
+      <button id="toggle" type="button">Start chiming</button>
+    </div>
+  </div>
+
+  <p class="status" id="status" aria-live="polite">Click Start once so the browser allows sound, then leave this tab open.</p>
+
+  <section class="settings" id="settingsPanel" aria-labelledby="settingsHead" hidden>
+    <h2 id="settingsHead">Settings</h2>
+
+    <div class="grid2">
+      <div class="field">
+        <label for="startT">Start time</label>
+        <input id="startT" type="time" value="08:00">
+      </div>
+      <div class="field">
+        <label for="stopT">Stop time</label>
+        <input id="stopT" type="time" value="20:00">
+      </div>
+    </div>
+
+    <fieldset class="field">
+      <legend>Days</legend>
+      <div class="days" id="days"></div>
+    </fieldset>
+
+    <div class="field">
+      <label for="interval">Chime interval</label>
+      <div class="srow disc">
+        <div class="sl">
+          <input id="interval" class="rng" type="range" min="0" max="8" step="1" value="7">
+          <div class="ticks" id="intervalTicks" aria-hidden="true"></div>
+        </div>
+        <output id="intervalOut" for="interval"></output>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="dbl">Double chime interval</label>
+      <div class="srow disc">
+        <div class="sl">
+          <input id="dbl" class="rng" type="range" min="0" max="3" step="1" value="2">
+          <div class="ticks" id="dblTicks" aria-hidden="true"></div>
+        </div>
+        <output id="dblOut" for="dbl"></output>
+      </div>
+      <p class="hint">Chimes twice on these marks. Only options that line up with the chime interval are available.</p>
+    </div>
+
+    <div class="field">
+      <span>Early warning</span>
+      <label class="check" style="color: var(--ink); font-size:.85rem"><input id="warnOn" type="checkbox" checked> Play a warning tone before each chime</label>
+      <div class="srow disc">
+        <div class="sl">
+          <input id="warnLead" class="rng" type="range" min="0" max="8" step="1" value="3" aria-label="Seconds before the chime">
+          <div class="ticks" id="leadTicks" aria-hidden="true"></div>
+        </div>
+        <output id="warnLeadOut" for="warnLead"></output>
+      </div>
+      <p class="hint">Only warnings shorter than the interval are available.</p>
+    </div>
+
+    <div class="soundgroup">
+      <h3>Chime sound</h3>
+      <div id="chimeSound"></div>
+      <div class="srow">
+        <label for="dblDelay">Double delay</label>
+        <input id="dblDelay" class="rng" type="range" min="0" max="10" step="0.1" value="2">
+        <output id="dblDelayOut" for="dblDelay"></output>
+      </div>
+      <div class="buttons"><button id="test" type="button" class="secondary">Test chime</button></div>
+    </div>
+
+    <div class="soundgroup">
+      <h3>Early warning sound</h3>
+      <div id="warnSound"></div>
+      <div class="buttons"><button id="testWarn" type="button" class="secondary">Test early warning</button></div>
+    </div>
+
+    <label class="check"><input id="awake" type="checkbox" checked> Keep screen awake while chiming</label>
+  </section>
+</main>
+
+<script>
+(function () {
+  var CIRC = 2 * Math.PI * 92;
+  var DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  var DAY_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+  var INTERVALS = [1, 2, 5, 10, 12, 15, 20, 30, 60];      // minutes; each divides an hour
+  var LEADS = [10, 20, 30, 60, 90, 120, 180, 240, 300];   // seconds
+  var DBLS = [15, 30, 60, 0];                             // double-chime marks in minutes; 0 = off
+  var DBL_LABELS = ['15m', '30m', '60m', 'off'];
+  // Notes C2..B7 (72 semitones). Index 0 = C2 = MIDI 36; A4 (index 33) = 440 Hz.
+  var NOTE_NAMES = ['C', 'C\u266F', 'D', 'D\u266F', 'E', 'F', 'F\u266F', 'G', 'G\u266F', 'A', 'A\u266F', 'B'];
+  function noteName(i) { var m = 36 + Math.round(i); return NOTE_NAMES[m % 12] + (Math.floor(m / 12) - 1); }
+  function noteFreq(i) { return 440 * Math.pow(2, (36 + Math.round(i) - 69) / 12); }
+  var SPEC = {
+    vol:   { label: 'Volume',    min: 0,    max: 100,  step: 1,    fmt: function (v) { return Math.round(v) + '%'; } },
+    note:  { label: 'Note',      min: 0,    max: 71,   step: 1,    fmt: function (v) { return noteName(v) + ' (' + Math.round(noteFreq(v)) + ' Hz)'; } },
+    decay: { label: 'Decay',     min: 0.3,  max: 10,   step: 0.1,  fmt: function (v) { return Number(v).toFixed(1) + ' s'; } }
+  };
+  var KEYS = ['vol', 'note', 'decay'];
+  var PEAK = 0.35; // fixed bell strike peak; loudness is set by each sound's Volume
+  var DEFAULTS = {
+    start: '08:00', stop: '20:00', days: [1, 2, 3, 4, 5],
+    interval: 30, dbl: 60, dblDelay: 2, warnOn: true, lead: 60, awake: true,
+    chime: { vol: 60, note: 14, decay: 6, note2On: true, note2: 19 },   // D3 + G3
+    warn:  { vol: 35, note: 12, decay: 6, note2On: true, note2: 17 }    // C3 + F3
+  };
+  var STORE_KEY = 'interval-chime-settings-v2';
+
+  var $ = function (id) { return document.getElementById(id); };
+  var el = {
+    dial: $('dial'), arc: $('arc'), clock: $('clock'), next: $('next'), status: $('status'),
+    toggle: $('toggle'), test: $('test'), testWarn: $('testWarn'),
+    startT: $('startT'), stopT: $('stopT'), days: $('days'),
+    interval: $('interval'), intervalOut: $('intervalOut'), intervalTicks: $('intervalTicks'),
+    warnOn: $('warnOn'), warnLead: $('warnLead'), warnLeadOut: $('warnLeadOut'), leadTicks: $('leadTicks'),
+    dbl: $('dbl'), dblOut: $('dblOut'), dblTicks: $('dblTicks'),
+    dblDelay: $('dblDelay'), dblDelayOut: $('dblDelayOut'),
+    awake: $('awake'), cog: $('cog'), panel: $('settingsPanel')
+  };
+
+  el.arc.style.strokeDasharray = CIRC;
+  el.arc.style.strokeDashoffset = CIRC;
+
+  // ---- day pills ----
+  var dayBoxes = [];
+  DAY_LABELS.forEach(function (name, i) {
+    var lab = document.createElement('label');
+    lab.className = 'pill';
+    var cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.value = i; cb.setAttribute('aria-label', name);
+    var sp = document.createElement('span');
+    sp.textContent = DAY_LETTERS[i]; sp.setAttribute('aria-hidden', 'true');
+    lab.appendChild(cb); lab.appendChild(sp);
+    el.days.appendChild(lab);
+    dayBoxes.push(cb);
+  });
+
+  // ---- sound sliders (built per sound) ----
+  var sound = { chime: {}, warn: {} };
+  function buildSound(group, container) {
+    KEYS.forEach(function (k) {
+      var sp = SPEC[k];
+      var row = document.createElement('div');
+      row.className = 'srow';
+      var id = group + '-' + k;
+      var lab = document.createElement('label'); lab.htmlFor = id; lab.textContent = sp.label;
+      var inp = document.createElement('input');
+      inp.type = 'range'; inp.className = 'rng'; inp.id = id; inp.min = sp.min; inp.max = sp.max; inp.step = sp.step;
+      var out = document.createElement('output'); out.htmlFor = id;
+      row.appendChild(lab); row.appendChild(inp); row.appendChild(out);
+      container.appendChild(row);
+      sound[group][k] = { input: inp, output: out };
+      inp.addEventListener('input', function () { out.textContent = sp.fmt(inp.value); setFill(inp); });
+      if (k === 'note') addSecondNote(group, container);
+    });
+  }
+
+  // Optional second note, sounded together with the first (e.g. C + F for a horn-like pair).
+  function addSecondNote(group, container) {
+    var sp = SPEC.note;
+    var row = document.createElement('div');
+    row.className = 'srow';
+    var lab = document.createElement('label'); lab.className = 'check';
+    var cb = document.createElement('input'); cb.type = 'checkbox'; cb.id = group + '-note2on';
+    lab.appendChild(cb); lab.appendChild(document.createTextNode('2nd note'));
+    var inp = document.createElement('input');
+    inp.type = 'range'; inp.className = 'rng'; inp.id = group + '-note2'; inp.min = sp.min; inp.max = sp.max; inp.step = sp.step;
+    inp.setAttribute('aria-label', 'Second note');
+    var out = document.createElement('output'); out.htmlFor = inp.id;
+    row.appendChild(lab); row.appendChild(inp); row.appendChild(out);
+    container.appendChild(row);
+    sound[group].note2On = cb;
+    sound[group].note2 = { input: inp, output: out };
+    inp.addEventListener('input', function () { out.textContent = sp.fmt(inp.value); setFill(inp); });
+    cb.addEventListener('change', function () { inp.disabled = !cb.checked; });
+  }
+
+  buildSound('chime', $('chimeSound'));
+  buildSound('warn', $('warnSound'));
+
+  // Fill fraction (0..1) drives the coloured part of the track.
+  function setFill(inp) {
+    var f = (inp.value - inp.min) / (inp.max - inp.min);
+    inp.style.setProperty('--f', f);
+  }
+
+  // ---- tick labels for the two discrete sliders ----
+  // Each label is centred on the thumb centre for its stop: the ticks box is inset by
+  // half the thumb width, so stop i sits at i/(n-1) of its width.
+  function buildTicks(container, labels) {
+    labels.forEach(function (text, i) {
+      var s = document.createElement('span');
+      s.textContent = text;
+      s.style.left = (labels.length > 1 ? (i / (labels.length - 1)) * 100 : 0) + '%';
+      container.appendChild(s);
+    });
+  }
+  buildTicks(el.intervalTicks, INTERVALS.map(function (v) { return v + 'm'; }));
+  buildTicks(el.leadTicks, LEADS.map(function (v) { return v + 's'; }));
+  buildTicks(el.dblTicks, DBL_LABELS);
+
+  // Highest early-warning index that still fires after the previous chime.
+  function maxLeadIdx(intervalMin) {
+    var best = 0;
+    for (var i = 0; i < LEADS.length; i++) if (LEADS[i] < intervalMin * 60) best = i;
+    return best;
+  }
+
+  // A double-chime mark only works if every such mark is also a chime mark, i.e. it is a
+  // whole multiple of the chime interval. Invalid options are always the shortest ones.
+  function minValidDblIdx(intervalMin) {
+    for (var i = 0; i < DBLS.length; i++) if (DBLS[i] === 0 || DBLS[i] % intervalMin === 0) return i;
+    return DBLS.length - 1;
+  }
+
+  function refreshDiscrete() {
+    var iv = INTERVALS[parseInt(el.interval.value, 10)];
+    var maxIdx = maxLeadIdx(iv);
+    if (parseInt(el.warnLead.value, 10) > maxIdx) el.warnLead.value = maxIdx;
+    var li = parseInt(el.warnLead.value, 10);
+
+    var minDbl = minValidDblIdx(iv);
+    if (parseInt(el.dbl.value, 10) < minDbl) el.dbl.value = minDbl;
+    var di = parseInt(el.dbl.value, 10);
+    el.dblOut.textContent = DBLS[di] ? DBLS[di] + ' min' : 'off';
+    Array.prototype.forEach.call(el.dblTicks.children, function (s, i) {
+      s.className = i < minDbl ? 'off' : (i === di ? 'sel' : '');
+    });
+    el.dbl.setAttribute('aria-valuetext', DBLS[di] ? 'every ' + DBLS[di] + ' minutes' : 'off');
+    el.dblDelayOut.textContent = Number(el.dblDelay.value).toFixed(1) + ' s';
+    el.dblDelay.disabled = !DBLS[di];
+    setFill(el.dblDelay);
+
+    el.intervalOut.textContent = iv + ' min';
+    el.warnLeadOut.textContent = LEADS[li] + ' s';
+    el.warnLead.disabled = !el.warnOn.checked;
+
+    Array.prototype.forEach.call(el.intervalTicks.children, function (s, i) {
+      s.className = i === parseInt(el.interval.value, 10) ? 'sel' : '';
+    });
+    Array.prototype.forEach.call(el.leadTicks.children, function (s, i) {
+      var c = [];
+      if (i > maxIdx) c.push('off');
+      if (i === li && el.warnOn.checked) c.push('sel');
+      s.className = c.join(' ');
+    });
+    setFill(el.interval); setFill(el.warnLead); setFill(el.dbl);
+    el.warnLead.setAttribute('aria-valuetext', LEADS[li] + ' seconds before the chime');
+    el.interval.setAttribute('aria-valuetext', iv + ' minutes');
+  }
+
+  // ---- settings read / write ----
+  function applySettings(s) {
+    el.startT.value = s.start;
+    el.stopT.value = s.stop;
+    dayBoxes.forEach(function (cb, i) { cb.checked = s.days.indexOf(i) !== -1; });
+    var ii = INTERVALS.indexOf(s.interval); el.interval.value = ii === -1 ? INTERVALS.indexOf(30) : ii;
+    var di0 = DBLS.indexOf(s.dbl); el.dbl.value = di0 === -1 ? 2 : di0;
+    el.dblDelay.value = typeof s.dblDelay === 'number' ? s.dblDelay : DEFAULTS.dblDelay;
+    el.warnOn.checked = !!s.warnOn;
+    var li = LEADS.indexOf(s.lead); el.warnLead.value = li === -1 ? 3 : li;
+    el.awake.checked = !!s.awake;
+    ['chime', 'warn'].forEach(function (g) {
+      KEYS.forEach(function (k) {
+        var c = sound[g][k];
+        c.input.value = s[g][k];
+        c.output.textContent = SPEC[k].fmt(c.input.value);
+        setFill(c.input);
+      });
+      var d = s[g], n2 = sound[g].note2;
+      sound[g].note2On.checked = !!d.note2On;
+      n2.input.value = d.note2;
+      n2.input.disabled = !d.note2On;
+      n2.output.textContent = SPEC.note.fmt(n2.input.value);
+      setFill(n2.input);
+    });
+    refreshDiscrete();
+  }
+
+  function readSound(g) {
+    var o = {};
+    KEYS.forEach(function (k) { o[k] = parseFloat(sound[g][k].input.value); });
+    o.note2On = sound[g].note2On.checked;
+    o.note2 = parseFloat(sound[g].note2.input.value);
+    return o;
+  }
+
+  function readSettings() {
+    var days = [];
+    dayBoxes.forEach(function (cb, i) { if (cb.checked) days.push(i); });
+    var iv = INTERVALS[parseInt(el.interval.value, 10)];
+    var di = Math.max(parseInt(el.dbl.value, 10), minValidDblIdx(iv));
+    var lead = LEADS[parseInt(el.warnLead.value, 10)];
+    if (lead >= iv * 60) lead = LEADS[maxLeadIdx(iv)];
+    return {
+      start: el.startT.value || DEFAULTS.start,
+      stop: el.stopT.value || DEFAULTS.stop,
+      days: days, interval: iv, dbl: DBLS[di], dblDelay: parseFloat(el.dblDelay.value) || 0, warnOn: el.warnOn.checked, lead: lead, awake: el.awake.checked,
+      chime: readSound('chime'), warn: readSound('warn')
+    };
+  }
+
+  function saveSettings() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(readSettings())); } catch (e) {}
+  }
+
+  var initial = JSON.parse(JSON.stringify(DEFAULTS));
+  try {
+    var raw = localStorage.getItem(STORE_KEY);
+    if (raw) {
+      var saved = JSON.parse(raw);
+      initial = Object.assign({}, initial, saved);
+      initial.chime = Object.assign({}, DEFAULTS.chime, saved.chime || {});
+      initial.warn = Object.assign({}, DEFAULTS.warn, saved.warn || {});
+    }
+  } catch (e) {}
+  applySettings(initial);
+
+  var S = readSettings();
+
+  function toMinutes(hhmm) {
+    var p = String(hhmm).split(':');
+    return (parseInt(p[0], 10) || 0) * 60 + (parseInt(p[1], 10) || 0);
+  }
+
+  // ---- schedule ----
+  function eligible(t) {
+    if (S.days.indexOf(t.getDay()) === -1) return false;
+    var m = t.getHours() * 60 + t.getMinutes();
+    var a = toMinutes(S.start), b = toMinutes(S.stop);
+    return a <= b ? (m >= a && m <= b) : (m >= a || m <= b);
+  }
+
+  // Next eligible chime strictly after `now`, or null if none within 8 days.
+  function computeNext(now) {
+    var step = S.interval * 60000;
+    var t = new Date(now.getTime());
+    t.setSeconds(0, 0);
+    t.setMinutes(t.getMinutes() + (S.interval - (t.getMinutes() % S.interval)));
+    var limit = Math.ceil(8 * 86400000 / step) + 2;
+    for (var i = 0; i < limit; i++) {
+      if (eligible(t)) return t;
+      t = new Date(t.getTime() + step);
+    }
+    return null;
+  }
+
+  function leadMs() {
+    return Math.min(S.lead, S.interval * 60 - 1) * 1000;
+  }
+
+  // ---- audio ----
+  var ctx = null, bus = { chime: null, warn: null };
+
+  function applyGains() {
+    if (!ctx) return;
+    bus.chime.gain.value = Math.pow(S.chime.vol / 100, 2);
+    bus.warn.gain.value = Math.pow(S.warn.vol / 100, 2);
+  }
+
+  function audio() {
+    if (!ctx) {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      ctx = new AC();
+      bus.chime = ctx.createGain(); bus.chime.connect(ctx.destination);
+      bus.warn = ctx.createGain(); bus.warn.connect(ctx.destination);
+    }
+    if (ctx.state === 'suspended') ctx.resume();
+    applyGains();
+    return ctx;
+  }
+
+  // One bell strike: inharmonic partials with exponential decay.
+  function strike(when, out, base, level, decay) {
+    var partials = [[1, 1], [2.76, 0.5], [5.4, 0.25], [8.93, 0.12]];
+    partials.forEach(function (p) {
+      var f = base * p[0];
+      if (f > ctx.sampleRate / 2 - 100) return;
+      var osc = ctx.createOscillator();
+      var g = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, when);
+      g.gain.exponentialRampToValueAtTime(Math.max(0.0002, level * p[1]), when + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, when + decay / p[0] + 0.3);
+      osc.connect(g);
+      g.connect(out);
+      osc.start(when);
+      osc.stop(when + decay + 1);
+    });
+  }
+
+  // One sounding of a voice: one or two bell notes together.
+  function playVoice(when, out, cfg) {
+    var freqs = [noteFreq(cfg.note)];
+    if (cfg.note2On) freqs.push(noteFreq(cfg.note2));
+    var scale = 1 / Math.sqrt(freqs.length); // keep the combined level steady
+    freqs.forEach(function (f) { strike(when, out, f, PEAK * scale, cfg.decay); });
+  }
+
+  function chime(count) {
+    var c = audio();
+    var t = c.currentTime + 0.05;
+    for (var i = 0; i < count; i++) playVoice(t + i * S.dblDelay, bus.chime, S.chime);
+  }
+
+  function warn() {
+    var c = audio();
+    playVoice(c.currentTime + 0.05, bus.warn, S.warn);
+  }
+
+  // ---- state ----
+  var running = false;
+  var nextChime = null;
+  var warnedFor = null;
+  var wakeLock = null;
+
+  function setNext(now) {
+    nextChime = computeNext(now);
+    warnedFor = null;
+    if (nextChime && S.warnOn && now.getTime() >= nextChime.getTime() - leadMs()) {
+      warnedFor = nextChime.getTime(); // already inside the warning window: skip this warning
+    }
+  }
+
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+  function hm(d) { return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+
+  function formatRemaining(ms) {
+    var total = Math.max(0, Math.floor(ms / 1000));
+    var h = Math.floor(total / 3600);
+    var m = Math.floor((total % 3600) / 60);
+    var s = total % 60;
+    if (h >= 1) return h + 'h ' + pad(m) + 'm';
+    return pad(m) + ':' + pad(s);
+  }
+
+  function tick() {
+    var now = new Date();
+    el.clock.textContent = pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
+    if (!running) return;
+
+    if (!nextChime) {
+      el.dial.classList.add('idle');
+      el.arc.style.strokeDashoffset = CIRC;
+      el.next.textContent = 'No chimes scheduled';
+      el.status.textContent = 'Select at least one day, and check the start and stop times.';
+      el.status.classList.remove('live');
+      return;
+    }
+
+    var nt = nextChime.getTime();
+    var nowMs = now.getTime();
+
+    // Early warning
+    if (S.warnOn && warnedFor !== nt && nowMs >= nt - leadMs()) {
+      warnedFor = nt;
+      if (nt - nowMs > 3000) warn(); // skip if the tab woke too late for a warning to make sense
+    }
+
+    // Real chime (90 s tolerance covers throttled background tabs, not wake from sleep)
+    if (nowMs >= nt) {
+      if (nowMs - nt < 90000) chime(S.dbl && nextChime.getMinutes() % S.dbl === 0 ? 2 : 1);
+      setNext(now);
+      if (!nextChime) return;
+      nt = nextChime.getTime();
+    }
+
+    var remaining = nt - nowMs;
+    var intervalMs = S.interval * 60000;
+    var active = eligible(new Date(nowMs)) && remaining <= intervalMs;
+    var sameDay = nextChime.toDateString() === now.toDateString();
+    var label = (sameDay ? '' : DAY_LABELS[nextChime.getDay()] + ' ') + hm(nextChime);
+
+    el.next.innerHTML = 'Next chime <strong>' + label + '</strong><br>in ' + formatRemaining(remaining);
+    el.arc.style.strokeDashoffset = CIRC * Math.min(1, remaining / intervalMs);
+    el.dial.classList.toggle('idle', !active);
+
+    if (active) {
+      el.status.textContent = 'Chiming every ' + S.interval + ' minutes until ' + S.stop +
+        (S.warnOn ? ', with an early warning ' + S.lead + 's before each chime.' : ', with no early warning.') +
+        ' Keep this tab open and the computer awake.';
+      el.status.classList.add('live');
+    } else {
+      el.status.textContent = 'Outside your chime hours. Chiming resumes ' + (sameDay ? 'at ' : 'on ') + label + '.';
+      el.status.classList.remove('live');
+    }
+  }
+
+  // ---- wake lock ----
+  async function requestWake() {
+    if (!S.awake || !running) return;
+    try {
+      if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen');
+    } catch (e) { wakeLock = null; }
+  }
+  function releaseWake() {
+    try { if (wakeLock) wakeLock.release(); } catch (e) {}
+    wakeLock = null;
+  }
+
+  // ---- start / stop ----
+  function start() {
+    S = readSettings();
+    audio();
+    running = true;
+    setNext(new Date());
+    el.dial.classList.remove('off');
+    el.toggle.textContent = 'Stop chiming';
+    requestWake();
+    tick();
+  }
+
+  function stop() {
+    running = false;
+    nextChime = null;
+    releaseWake();
+    el.dial.classList.remove('idle');
+    el.dial.classList.add('off');
+    el.arc.style.strokeDashoffset = CIRC;
+    el.next.textContent = 'Stopped';
+    el.toggle.textContent = 'Start chiming';
+    el.status.textContent = 'Click Start once so the browser allows sound, then leave this tab open.';
+    el.status.classList.remove('live');
+  }
+
+  function onSettingsChange() {
+    refreshDiscrete();
+    S = readSettings();
+    saveSettings();
+    applyGains();
+    if (running) { setNext(new Date()); tick(); }
+  }
+
+  el.cog.addEventListener('click', function () {
+    var open = el.panel.hidden;           // hidden now, so this click opens it
+    el.panel.hidden = !open;
+    el.cog.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+
+  el.toggle.addEventListener('click', function () { running ? stop() : start(); });
+  el.test.addEventListener('click', function () { S = readSettings(); chime(S.dbl ? 2 : 1); });
+  el.testWarn.addEventListener('click', function () { S = readSettings(); warn(); });
+
+  [el.startT, el.stopT, el.interval, el.dbl, el.dblDelay, el.warnOn, el.warnLead].forEach(function (c) {
+    c.addEventListener('input', onSettingsChange);
+    c.addEventListener('change', onSettingsChange);
+  });
+  dayBoxes.forEach(function (cb) { cb.addEventListener('change', onSettingsChange); });
+  ['chime', 'warn'].forEach(function (g) {
+    KEYS.forEach(function (k) {
+      sound[g][k].input.addEventListener('input', onSettingsChange);
+      sound[g][k].input.addEventListener('change', onSettingsChange);
+    });
+    [sound[g].note2On, sound[g].note2.input].forEach(function (c) {
+      c.addEventListener('input', onSettingsChange);
+      c.addEventListener('change', onSettingsChange);
+    });
+  });
+  el.awake.addEventListener('change', function () {
+    onSettingsChange();
+    S.awake ? requestWake() : releaseWake();
+  });
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') requestWake();
+  });
+
+  setInterval(tick, 500);
+  tick();
+})();
+</script>
+</body>
+</html>
